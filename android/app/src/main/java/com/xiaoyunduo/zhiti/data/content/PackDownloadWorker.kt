@@ -3,6 +3,7 @@ package com.xiaoyunduo.zhiti.data.content
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
+import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.work.CoroutineWorker
 import androidx.work.Data
@@ -136,7 +137,11 @@ class PackDownloadWorker(context: Context, params: WorkerParameters) : Coroutine
             .setContentTitle("正在下载$name")
             .setProgress(100, progress, progress == 0)
             .setOngoing(true).build()
-        return ForegroundInfo(packId.hashCode(), notification)
+        return ForegroundInfo(
+            packId.hashCode(),
+            notification,
+            ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
+        )
     }
 
     companion object {

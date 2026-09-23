@@ -1,3 +1,4 @@
 -keepattributes Signature
 -keep class com.xiaoyunduo.zhiti.data.api.** { *; }
-
+-keep class org.bouncycastle.** { *; }
+-dontwarn org.bouncycastle.**

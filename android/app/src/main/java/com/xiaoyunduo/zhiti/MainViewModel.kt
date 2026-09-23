@@ -56,6 +56,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val verifier = CatalogVerifier(application)
     private val workManager = WorkManager.getInstance(application)
     private val _state = MutableStateFlow(UiState())
+    private val observedDownloads = mutableSetOf<String>()
     val state: StateFlow<UiState> = _state.asStateFlow()
 
     init {
@@ -102,6 +103,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private suspend fun refreshCatalog(token: String, stayOnHome: Boolean) {
         runCatching { container.api.catalog(token, verifier::verify) }
             .onSuccess { catalog ->
+                catalog.packs.forEach { observeDownload(it.packId) }
                 _state.update {
                     it.copy(catalog = catalog, page = if (stayOnHome) it.page else Page.DOWNLOADS, busy = false, error = null)
                 }
@@ -122,18 +124,23 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 PackDownloadWorker.KEY_SIZE to pack.size,
             )
         ).build()
+        observeDownload(pack.packId)
         workManager.enqueueUniqueWork("pack-${pack.packId}", ExistingWorkPolicy.KEEP, request)
+    }
+
+    private fun observeDownload(packId: String) {
+        if (!observedDownloads.add(packId)) return
         viewModelScope.launch {
-            workManager.getWorkInfoByIdFlow(request.id).collect { info ->
-                if (info == null) return@collect
+            workManager.getWorkInfosForUniqueWorkFlow("pack-$packId").collect { infos ->
+                val info = infos.lastOrNull() ?: return@collect
                 val progress = info.progress.getInt(PackDownloadWorker.KEY_PROGRESS, 0)
-                _state.update { it.copy(downloads = it.downloads + (pack.packId to progress)) }
+                if (!info.state.isFinished) _state.update { it.copy(downloads = it.downloads + (packId to progress)) }
                 if (info.state == WorkInfo.State.SUCCEEDED) {
                     val installed = installedPacks()
-                    _state.update { it.copy(installed = installed, installedVersions = installedVersions(), downloads = it.downloads - pack.packId) }
+                    _state.update { it.copy(installed = installed, installedVersions = installedVersions(), downloads = it.downloads - packId) }
                     loadHome()
                 } else if (info.state == WorkInfo.State.FAILED || info.state == WorkInfo.State.CANCELLED) {
-                    _state.update { it.copy(downloads = it.downloads - pack.packId, error = "题库下载失败") }
+                    _state.update { it.copy(downloads = it.downloads - packId, error = "题库下载失败") }
                 }
             }
         }
@@ -258,6 +265,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             container.answers.clear()
             container.preferences.currentSession = null
+            _state.update {
+                it.copy(
+                    session = null,
+                    question = null,
+                    selected = null,
+                    submitted = false,
+                    favorite = false,
+                    collectionType = null,
+                )
+            }
             loadHome()
         }
     }

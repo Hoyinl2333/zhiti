@@ -184,7 +184,7 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
         Spacer(Modifier.height(28.dp))
         if ("judgment" in state.installed) {
             SectionTitle("判断推理")
-            val categories = listOf("图形推理", "定义判断", "类比推理", "逻辑判断")
+            val categories = listOf("图形推理", "定义判断", "类比推理", "逻辑判断", "科学推理")
             categories.chunked(2).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { category ->
@@ -268,7 +268,7 @@ private fun QuestionLayout(question: Question, state: UiState, viewModel: MainVi
 private fun QuestionBody(question: Question, state: UiState, viewModel: MainViewModel, modifier: Modifier, showMaterial: Boolean = false) {
     Column(modifier.verticalScroll(rememberScrollState()).padding(20.dp)) {
         Text(listOfNotNull(question.year?.toString(), question.region.takeIf { it.isNotBlank() }, "题号 ${question.qid}").joinToString(" · "), color = Muted, fontSize = 13.sp)
-        if (showMaterial && question.material.isNotEmpty()) MaterialDisclosure(question)
+        if (showMaterial && question.module == "data-analysis" && question.material.isNotEmpty()) MaterialDisclosure(question)
         Spacer(Modifier.height(16.dp))
         RichContent(question.stem, question.module, textSize = 19)
         Spacer(Modifier.height(18.dp))
@@ -304,13 +304,16 @@ private fun OptionCard(key: String, blocks: List<ContentBlock>, question: Questi
     val wrong = state.submitted && selected && key != question.answer
     val border = when { correct -> Green; wrong -> MaterialTheme.colorScheme.error; selected -> Navy; else -> Line }
     val background = when { correct -> Color(0xFFEAF7F0); wrong -> Color(0xFFFFEEEE); selected -> Color(0xFFEDF3FA); else -> Color.White }
+    val visibleBlocks = blocks.takeUnless {
+        it.size == 1 && it.single().type == "text" && it.single().text.trim() == key
+    }.orEmpty()
     Surface(
         Modifier.fillMaxWidth().padding(bottom = 11.dp).clip(RoundedCornerShape(14.dp)).clickable(enabled = !state.submitted, onClick = select).border(1.5.dp, border, RoundedCornerShape(14.dp)),
         color = background,
     ) {
         Row(Modifier.padding(15.dp), verticalAlignment = Alignment.Top) {
             Text(key, fontWeight = FontWeight.Bold, color = border, modifier = Modifier.width(28.dp))
-            Column(Modifier.weight(1f)) { RichContent(blocks, question.module, textSize = 17) }
+            Column(Modifier.weight(1f)) { RichContent(visibleBlocks, question.module, textSize = 17) }
             if (correct) Icon(Icons.Outlined.CheckCircle, null, tint = Green)
             else if (wrong) Icon(Icons.Outlined.Cancel, null, tint = MaterialTheme.colorScheme.error)
         }
