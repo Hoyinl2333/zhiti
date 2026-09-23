@@ -13,6 +13,12 @@ assert SPEC.loader
 sys.modules[SPEC.name] = PIPELINE
 SPEC.loader.exec_module(PIPELINE)
 
+VERIFY_SPEC = importlib.util.spec_from_file_location("verify_pack", Path(__file__).parents[1] / "verify_pack.py")
+VERIFY = importlib.util.module_from_spec(VERIFY_SPEC)
+assert VERIFY_SPEC.loader
+sys.modules[VERIFY_SPEC.name] = VERIFY
+VERIFY_SPEC.loader.exec_module(VERIFY)
+
 
 class PipelineTest(unittest.TestCase):
     def test_option_answer_is_removed_from_content(self):
@@ -39,6 +45,15 @@ class PipelineTest(unittest.TestCase):
             with zipfile.ZipFile(output) as archive:
                 self.assertEqual(archive.namelist(), ["a", "b"])
                 self.assertTrue(all(item.date_time == (2020, 1, 1, 0, 0, 0) for item in archive.infolist()))
+
+    def test_zip_path_traversal_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp_name:
+            archive_path = Path(temp_name) / "unsafe.zip"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                archive.writestr("../escape", "bad")
+            with zipfile.ZipFile(archive_path) as archive:
+                with self.assertRaises(ValueError):
+                    VERIFY.safe_members(archive)
 
 
 if __name__ == "__main__":
