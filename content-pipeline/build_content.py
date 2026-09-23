@@ -67,9 +67,14 @@ def section(text: str, name: str) -> str:
 
 def heading_section(text: str, name: str) -> str:
     pattern = re.compile(
-        rf"^##\s+{re.escape(name)}\s*$\n(.*?)(?=^##\s+|^---\s*$|\Z)", re.M | re.S
+        rf"^##\s+{re.escape(name)}\s*$\n(.*?)(?=^##\s+|^\*\*最快解法\*\*|^---\s*$|\Z)", re.M | re.S
     )
     match = pattern.search(text)
+    return match.group(1).strip() if match else ""
+
+
+def fast_solution(text: str) -> str:
+    match = re.search(r"^\*\*最快解法\*\*[：:]?\s*(.*?)(?=^##\s+|^---\s*$|\Z)", text, re.M | re.S)
     return match.group(1).strip() if match else ""
 
 
@@ -239,7 +244,7 @@ def parse_questions(source_root: Path, module: str, materials: dict[str, dict], 
         if module == "data-analysis" and not mid and not clean_text(inline_material):
             reasons.append("缺少材料关联与内嵌材料")
         raw_parts = [
-            stem, options_text, explanation, heading_section(text, "最快解法"),
+            stem, options_text, explanation, fast_solution(text),
             heading_section(text, "推理链"), heading_section(text, "易错点"), inline_material,
         ]
         for raw in raw_parts:
@@ -264,7 +269,7 @@ def parse_questions(source_root: Path, module: str, materials: dict[str, dict], 
                 "options_raw": rows,
                 "answer": answers[0],
                 "explanation_raw": explanation,
-                "fast_raw": heading_section(text, "最快解法").lstrip("：: "),
+                "fast_raw": fast_solution(text),
                 "reasoning_raw": heading_section(text, "推理链"),
                 "pitfalls_raw": heading_section(text, "易错点"),
                 "material_id": mid,

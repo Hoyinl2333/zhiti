@@ -23,6 +23,11 @@ class PipelineTest(unittest.TestCase):
     def test_script_is_removed(self):
         self.assertEqual(PIPELINE.clean_text("<p>题干</p><script>bad()</script>"), "题干")
 
+    def test_fast_solution_is_separate_from_reasoning(self):
+        source = "## 推理链\n1. 第一步\n\n**最快解法**：直接排除。\n\n## 易错点\n- 看错题干"
+        self.assertEqual(PIPELINE.heading_section(source, "推理链"), "1. 第一步")
+        self.assertEqual(PIPELINE.fast_solution(source), "直接排除。")
+
     def test_zip_has_fixed_timestamp_and_sorted_paths(self):
         with tempfile.TemporaryDirectory() as temp_name:
             root = Path(temp_name)
