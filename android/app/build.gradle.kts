@@ -37,6 +37,10 @@ android {
                 storePassword = releaseProperties.getProperty("ZHITI_KEYSTORE_PASSWORD")
                 keyAlias = releaseProperties.getProperty("ZHITI_KEY_ALIAS")
                 keyPassword = releaseProperties.getProperty("ZHITI_KEY_PASSWORD")
+                enableV1Signing = false
+                enableV2Signing = true
+                enableV3Signing = true
+                enableV4Signing = true
             }
         }
     }
@@ -86,4 +90,3 @@ dependencies {
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
     debugImplementation("androidx.compose.ui:ui-test-manifest")
 }
-

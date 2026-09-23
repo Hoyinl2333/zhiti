@@ -39,6 +39,7 @@ class PackDownloadWorker(context: Context, params: WorkerParameters) : Coroutine
             install(packId, version, partial)
             container.preferences.setInstalled(packId, version)
             partial.delete()
+            File(partial.path + ".etag").delete()
             Result.success()
         } catch (error: Exception) {
             if (runAttemptCount >= 2) Result.failure(workDataOf("error" to (error.message ?: "download failed"))) else Result.retry()
@@ -47,14 +48,19 @@ class PackDownloadWorker(context: Context, params: WorkerParameters) : Coroutine
 
     private suspend fun download(url: String, token: String, file: File, expectedSize: Long, packId: String) {
         var existing = if (file.isFile) file.length() else 0L
+        val etagFile = File(file.path + ".etag")
         val request = Request.Builder().url(url).header("Authorization", "Bearer $token").apply {
-            if (existing > 0) header("Range", "bytes=$existing-")
+            if (existing > 0) {
+                header("Range", "bytes=$existing-")
+                if (etagFile.isFile) header("If-Range", etagFile.readText())
+            }
         }.build()
         container.api.client.newCall(request).execute().use { response ->
             if (response.code == 200 && existing > 0) {
                 file.delete(); existing = 0
             }
             if (response.code !in listOf(200, 206)) error("下载失败 ${response.code}")
+            response.header("ETag")?.let(etagFile::writeText)
             RandomAccessFile(file, "rw").use { output ->
                 output.seek(existing)
                 response.body.byteStream().use { input ->

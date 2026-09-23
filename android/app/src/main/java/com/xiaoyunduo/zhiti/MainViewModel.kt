@@ -38,6 +38,7 @@ data class UiState(
     val catalog: Catalog? = null,
     val downloads: Map<String, Int> = emptyMap(),
     val installed: Set<String> = emptySet(),
+    val installedVersions: Map<String, String> = emptyMap(),
     val categories: Map<String, Int> = emptyMap(),
     val answeredCount: Int = 0,
     val wrongCount: Int = 0,
@@ -70,7 +71,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun start() {
         val installed = installedPacks()
-        _state.update { it.copy(installed = installed) }
+        _state.update { it.copy(installed = installed, installedVersions = installedVersions()) }
         val token = container.preferences.accessToken
         if (token == null) {
             _state.update { it.copy(page = Page.ACTIVATION, busy = false) }
@@ -129,7 +130,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
                 _state.update { it.copy(downloads = it.downloads + (pack.packId to progress)) }
                 if (info.state == WorkInfo.State.SUCCEEDED) {
                     val installed = installedPacks()
-                    _state.update { it.copy(installed = installed, downloads = it.downloads - pack.packId) }
+                    _state.update { it.copy(installed = installed, installedVersions = installedVersions(), downloads = it.downloads - pack.packId) }
                     loadHome()
                 } else if (info.state == WorkInfo.State.FAILED || info.state == WorkInfo.State.CANCELLED) {
                     _state.update { it.copy(downloads = it.downloads - pack.packId, error = "题库下载失败") }
@@ -146,7 +147,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private suspend fun loadHome() {
         val categories = if (container.content.isInstalled("judgment")) container.content.categories("judgment") else emptyMap()
-        _state.update { it.copy(page = Page.HOME, busy = false, categories = categories, installed = installedPacks(), error = null) }
+        _state.update { it.copy(page = Page.HOME, busy = false, categories = categories, installed = installedPacks(), installedVersions = installedVersions(), error = null) }
     }
 
     fun continueSession() {
@@ -262,6 +263,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun installedPacks(): Set<String> = setOf("judgment", "data-analysis").filter(container.content::isInstalled).toSet()
+
+    private fun installedVersions(): Map<String, String> = setOf("judgment", "data-analysis").mapNotNull { packId ->
+        container.preferences.installedVersion(packId)?.let { packId to it }
+    }.toMap()
 
     private fun deviceDigest(context: Context): String {
         val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID).orEmpty()

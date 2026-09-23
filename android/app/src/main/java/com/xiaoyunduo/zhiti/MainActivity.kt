@@ -120,9 +120,10 @@ private fun DownloadsScreen(state: UiState, download: (ContentPack) -> Unit, ope
         TopTitle("题库")
         state.error?.let { InlineError(it) }
         state.catalog?.packs?.forEach { pack ->
-            val installed = pack.packId in state.installed
+            val installed = state.installedVersions[pack.packId] == pack.contentVersion
+            val updateAvailable = pack.packId in state.installed && !installed
             val progress = state.downloads[pack.packId]
-            PackCard(pack, installed, progress) { download(pack) }
+            PackCard(pack, installed, updateAvailable, progress) { download(pack) }
         }
         if (state.installed.isNotEmpty()) {
             Spacer(Modifier.height(10.dp))
@@ -132,7 +133,7 @@ private fun DownloadsScreen(state: UiState, download: (ContentPack) -> Unit, ope
 }
 
 @Composable
-private fun PackCard(pack: ContentPack, installed: Boolean, progress: Int?, action: () -> Unit) {
+private fun PackCard(pack: ContentPack, installed: Boolean, updateAvailable: Boolean, progress: Int?, action: () -> Unit) {
     val name = if (pack.packId == "judgment") "判断推理" else "资料分析"
     Surface(Modifier.fillMaxWidth().padding(bottom = 12.dp), shape = RoundedCornerShape(16.dp), border = BorderStroke(1.dp, Line)) {
         Column(Modifier.padding(18.dp)) {
@@ -144,7 +145,7 @@ private fun PackCard(pack: ContentPack, installed: Boolean, progress: Int?, acti
                 when {
                     installed -> Icon(Icons.Outlined.CheckCircle, "已安装", tint = Green)
                     progress != null -> Text("$progress%", color = Navy, fontWeight = FontWeight.SemiBold)
-                    else -> OutlinedButton(onClick = action) { Text("下载") }
+                    else -> OutlinedButton(onClick = action) { Text(if (updateAvailable) "更新" else "下载") }
                 }
             }
             if (progress != null) LinearProgressIndicator(progress = { progress / 100f }, Modifier.fillMaxWidth().padding(top = 14.dp))
