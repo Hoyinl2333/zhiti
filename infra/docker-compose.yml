@@ -1,0 +1,33 @@
+services:
+  zhiti:
+    build:
+      context: ../server
+    container_name: zhiti-server
+    restart: unless-stopped
+    ports:
+      - "443:443"
+    environment:
+      ZHITI_ADDRESS: ":443"
+      ZHITI_STATE_PATH: "/data/state.json"
+      ZHITI_CONTENT_DIR: "/content"
+      ZHITI_CATALOG_PATH: "/content/catalog.json"
+      ZHITI_CATALOG_SIG: "/content/catalog.sig"
+      ZHITI_TLS_CERT: "/certs/server.crt"
+      ZHITI_TLS_KEY: "/certs/server.key"
+      ZHITI_PEPPER: "${ZHITI_PEPPER:?set ZHITI_PEPPER}"
+    volumes:
+      - ./runtime/data:/data
+      - ./runtime/content:/content:ro
+      - ./runtime/certs:/certs:ro
+    read_only: true
+    tmpfs:
+      - /tmp:size=16m,noexec,nosuid
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    cap_add:
+      - NET_BIND_SERVICE
+    mem_limit: 256m
+    cpus: 1.0
+
