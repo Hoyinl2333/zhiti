@@ -1,6 +1,6 @@
 # 服务器部署与维护
 
-服务使用独立 `zhiti-server` 容器，仅映射宿主机 443。现有 80、8080、3306 和 8025 端口不需要改动。
+服务使用独立 `zhiti-server` 容器，仅映射宿主机 443。容器由本机交叉编译的静态 Go 二进制和空 `scratch` 镜像组成，不依赖 Docker Hub。现有 80、8080、3306 和 8025 端口不需要改动。
 
 ## 首次部署
 
@@ -16,10 +16,10 @@
 
 ```bash
 cd /opt/zhiti/infra
-docker compose run --rm --entrypoint zhiti-admin zhiti create --state /data/state.json --count 1
-docker compose run --rm --entrypoint zhiti-admin zhiti status --state /data/state.json
-docker compose run --rm --entrypoint zhiti-admin zhiti unbind --state /data/state.json --code ZHITI-XXXX-XXXX-XXXX-XXXX
-docker compose run --rm --entrypoint zhiti-admin zhiti revoke --state /data/state.json --code ZHITI-XXXX-XXXX-XXXX-XXXX
+docker compose run --rm --entrypoint /zhiti-admin zhiti create --state /data/state.json --count 1
+docker compose run --rm --entrypoint /zhiti-admin zhiti status --state /data/state.json
+docker compose run --rm --entrypoint /zhiti-admin zhiti unbind --state /data/state.json --code ZHITI-XXXX-XXXX-XXXX-XXXX
+docker compose run --rm --entrypoint /zhiti-admin zhiti revoke --state /data/state.json --code ZHITI-XXXX-XXXX-XXXX-XXXX
 ```
 
 每个激活码只绑定一个设备摘要。状态命令只显示摘要前 12 位。
@@ -27,4 +27,3 @@ docker compose run --rm --entrypoint zhiti-admin zhiti revoke --state /data/stat
 ## 备份
 
 需备份本地 `.secrets/` 和服务器 `/opt/zhiti/infra/runtime/data/state.json`。CA 私钥、内容签名私钥和 APK 签名库只保存在本地离线备份中。
-

@@ -14,6 +14,7 @@ import (
 	"sort"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 )
 
@@ -64,6 +65,14 @@ func Open(path, pepper string) (*Store, error) {
 func (s *Store) CreateCodes(count int) ([]string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, err := s.externalLock()
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if err := s.reloadLocked(); err != nil {
+		return nil, err
+	}
 	result := make([]string, 0, count)
 	for range count {
 		code, err := randomCode()
@@ -79,6 +88,14 @@ func (s *Store) CreateCodes(count int) ([]string, error) {
 func (s *Store) Activate(code, deviceDigest string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, err := s.externalLock()
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	if err := s.reloadLocked(); err != nil {
+		return "", err
+	}
 	codeHash := s.hash("code", normalizeCode(code))
 	deviceHash := s.hash("device", deviceDigest)
 	for index := range s.data.Records {
@@ -114,6 +131,14 @@ func (s *Store) Activate(code, deviceDigest string) (string, error) {
 func (s *Store) Authorize(token string) (string, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, err := s.externalLock()
+	if err != nil {
+		return "", err
+	}
+	defer release()
+	if err := s.reloadLocked(); err != nil {
+		return "", err
+	}
 	tokenHash := s.hash("token", token)
 	for index := range s.data.Records {
 		record := &s.data.Records[index]
@@ -147,6 +172,14 @@ func (s *Store) Unbind(code string) error {
 func (s *Store) mutateCode(code string, change func(*Record)) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, err := s.externalLock()
+	if err != nil {
+		return err
+	}
+	defer release()
+	if err := s.reloadLocked(); err != nil {
+		return err
+	}
 	hash := s.hash("code", normalizeCode(code))
 	for index := range s.data.Records {
 		if subtle.ConstantTimeCompare([]byte(s.data.Records[index].CodeHash), []byte(hash)) == 1 {
@@ -157,12 +190,20 @@ func (s *Store) mutateCode(code string, change func(*Record)) error {
 	return ErrUnknownCode
 }
 
-func (s *Store) Status() []Record {
+func (s *Store) Status() ([]Record, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	release, err := s.externalLock()
+	if err != nil {
+		return nil, err
+	}
+	defer release()
+	if err := s.reloadLocked(); err != nil {
+		return nil, err
+	}
 	copyRecords := append([]Record(nil), s.data.Records...)
 	sort.Slice(copyRecords, func(i, j int) bool { return copyRecords[i].CreatedAt.Before(copyRecords[j].CreatedAt) })
-	return copyRecords
+	return copyRecords, nil
 }
 
 func (s *Store) hash(kind, value string) string {
@@ -183,6 +224,41 @@ func (s *Store) saveLocked() error {
 		return err
 	}
 	return os.Rename(temporary, s.path)
+}
+
+func (s *Store) reloadLocked() error {
+	bytes, err := os.ReadFile(s.path)
+	if errors.Is(err, os.ErrNotExist) {
+		s.data = fileData{Version: 1}
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	var fresh fileData
+	if err := json.Unmarshal(bytes, &fresh); err != nil {
+		return fmt.Errorf("decode state: %w", err)
+	}
+	s.data = fresh
+	return nil
+}
+
+func (s *Store) externalLock() (func(), error) {
+	if err := os.MkdirAll(filepath.Dir(s.path), 0o700); err != nil {
+		return nil, err
+	}
+	file, err := os.OpenFile(s.path+".lock", os.O_CREATE|os.O_RDWR, 0o600)
+	if err != nil {
+		return nil, err
+	}
+	if err := syscall.Flock(int(file.Fd()), syscall.LOCK_EX); err != nil {
+		file.Close()
+		return nil, err
+	}
+	return func() {
+		_ = syscall.Flock(int(file.Fd()), syscall.LOCK_UN)
+		_ = file.Close()
+	}, nil
 }
 
 func randomCode() (string, error) {

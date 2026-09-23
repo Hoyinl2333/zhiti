@@ -13,6 +13,7 @@ dist/
 content-pipeline/build/
 content-pipeline/cache/
 server/data/
+server/.docker/
 infra/runtime/
 *.jks
 *.keystore

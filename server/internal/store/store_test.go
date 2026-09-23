@@ -54,3 +54,22 @@ func TestUnbindAllowsDifferentDevice(t *testing.T) {
 		t.Fatal(err)
 	}
 }
+
+func TestChangesFromAnotherProcessBecomeVisible(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "state.json")
+	serverState, err := Open(path, testPepper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	adminState, err := Open(path, testPepper)
+	if err != nil {
+		t.Fatal(err)
+	}
+	codes, err := adminState.CreateCodes(1)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := serverState.Activate(codes[0], "device"); err != nil {
+		t.Fatalf("server did not reload admin change: %v", err)
+	}
+}

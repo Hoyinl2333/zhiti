@@ -47,7 +47,10 @@ func main() {
 		}
 		fmt.Println("unbound")
 	case "status":
-		records := state.Status()
+		records, err := state.Status()
+		if err != nil {
+			fatal(err.Error())
+		}
 		for index := range records {
 			records[index].CodeHash = records[index].CodeHash[:12]
 			if records[index].DeviceHash != "" {
