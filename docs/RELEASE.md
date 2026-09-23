@@ -9,8 +9,8 @@ cd android
 发布文件位于 `android/app/build/outputs/apk/release/app-release.apk`。复制后生成校验信息：
 
 ```bash
-cp android/app/build/outputs/apk/release/app-release.apk dist/zhiti-v1.0.1.apk
-shasum -a 256 dist/zhiti-v1.0.1.apk > dist/zhiti-v1.0.1.apk.sha256
+cp android/app/build/outputs/apk/release/app-release.apk dist/zhiti-v1.0.2.apk
+shasum -a 256 dist/zhiti-v1.0.2.apk > dist/zhiti-v1.0.2.apk.sha256
 keytool -list -v -keystore .secrets/zhiti-release.jks -alias zhiti
 ```
 

@@ -225,19 +225,32 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
 private fun SettingsScreen(state: UiState, back: () -> Unit, setQuestionsPerSet: (Int) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     ScreenColumn {
-        Row(verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().height(56.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             IconButton(onClick = back) { Icon(Icons.Outlined.Close, "返回") }
-            TopTitle("设置", Modifier.weight(1f).padding(start = 4.dp))
+            Text(
+                "设置",
+                Modifier.weight(1f).padding(start = 4.dp),
+                fontSize = 28.sp,
+                fontWeight = FontWeight.Bold,
+            )
         }
+        Spacer(Modifier.height(18.dp))
         SectionTitle("每组题数")
         Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp), border = BorderStroke(1.dp, Line), color = Color.White) {
             Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text("判断推理", Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
                 Box {
-                    OutlinedButton(onClick = { expanded = true }) {
+                    OutlinedButton(
+                        onClick = { expanded = true },
+                        modifier = Modifier.height(44.dp),
+                        contentPadding = PaddingValues(start = 16.dp, end = 8.dp),
+                    ) {
                         Text("${state.questionsPerSet} 题")
-                        Spacer(Modifier.width(4.dp))
-                        Icon(Icons.Outlined.ArrowDropDown, null)
+                        Spacer(Modifier.width(6.dp))
+                        Icon(Icons.Outlined.ArrowDropDown, null, Modifier.size(18.dp))
                     }
                     DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
                         listOf(5, 10, 15, 20).forEach { count ->
