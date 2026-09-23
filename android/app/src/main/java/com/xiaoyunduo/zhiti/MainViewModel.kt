@@ -28,7 +28,7 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import java.security.MessageDigest
 
-enum class Page { ACTIVATION, DOWNLOADS, HOME, PRACTICE, SUMMARY, COLLECTION }
+enum class Page { ACTIVATION, DOWNLOADS, HOME, SETTINGS, PRACTICE, SUMMARY, COLLECTION }
 enum class CollectionType { WRONG, FAVORITES }
 
 data class UiState(
@@ -41,8 +41,11 @@ data class UiState(
     val installedVersions: Map<String, String> = emptyMap(),
     val categories: Map<String, Int> = emptyMap(),
     val answeredCount: Int = 0,
+    val categoryProgress: Map<String, Int> = emptyMap(),
+    val completedMaterialCount: Int = 0,
     val wrongCount: Int = 0,
     val favoriteCount: Int = 0,
+    val questionsPerSet: Int = 5,
     val session: SessionSnapshot? = null,
     val question: Question? = null,
     val selected: String? = null,
@@ -66,13 +69,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun observeCounts() {
         viewModelScope.launch { container.answers.answeredCount().collect { value -> _state.update { it.copy(answeredCount = value) } } }
+        viewModelScope.launch {
+            container.answers.attemptedIdsFlow().collect { attempted ->
+                refreshProgress(attempted.toSet())
+            }
+        }
         viewModelScope.launch { container.answers.wrongCount().collect { value -> _state.update { it.copy(wrongCount = value) } } }
         viewModelScope.launch { container.answers.favoriteCount().collect { value -> _state.update { it.copy(favoriteCount = value) } } }
     }
 
     private suspend fun start() {
         val installed = installedPacks()
-        _state.update { it.copy(installed = installed, installedVersions = installedVersions()) }
+        _state.update { it.copy(installed = installed, installedVersions = installedVersions(), questionsPerSet = container.preferences.questionsPerSet) }
         val token = container.preferences.accessToken
         if (token == null) {
             _state.update { it.copy(page = Page.ACTIVATION, busy = false) }
@@ -148,13 +156,41 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun openDownloads() { _state.update { it.copy(page = Page.DOWNLOADS, error = null) } }
 
+    fun openSettings() { _state.update { it.copy(page = Page.SETTINGS, error = null) } }
+
+    fun setQuestionsPerSet(value: Int) {
+        if (value !in setOf(5, 10, 15, 20)) return
+        container.preferences.questionsPerSet = value
+        _state.update { it.copy(questionsPerSet = value) }
+    }
+
     fun openHome() {
         viewModelScope.launch { loadHome() }
     }
 
     private suspend fun loadHome() {
+        val attempted = container.answers.attemptedIds().toSet()
         val categories = if (container.content.isInstalled("judgment")) container.content.categories("judgment") else emptyMap()
-        _state.update { it.copy(page = Page.HOME, busy = false, categories = categories, installed = installedPacks(), installedVersions = installedVersions(), error = null) }
+        val categoryProgress = if (container.content.isInstalled("judgment")) container.content.answeredByCategory(attempted) else emptyMap()
+        val completedMaterialCount = if (container.content.isInstalled("data-analysis")) container.content.completedMaterialCount(attempted) else 0
+        _state.update {
+            it.copy(
+                page = Page.HOME,
+                busy = false,
+                categories = categories,
+                categoryProgress = categoryProgress,
+                completedMaterialCount = completedMaterialCount,
+                installed = installedPacks(),
+                installedVersions = installedVersions(),
+                error = null,
+            )
+        }
+    }
+
+    private suspend fun refreshProgress(attempted: Set<String>) {
+        val categoryProgress = if (container.content.isInstalled("judgment")) container.content.answeredByCategory(attempted) else emptyMap()
+        val completedMaterialCount = if (container.content.isInstalled("data-analysis")) container.content.completedMaterialCount(attempted) else 0
+        _state.update { it.copy(categoryProgress = categoryProgress, completedMaterialCount = completedMaterialCount) }
     }
 
     fun continueSession() {
@@ -164,8 +200,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun startJudgment(category: String) {
         viewModelScope.launch {
             val attempted = container.answers.attemptedIds().toSet()
-            var qids = container.content.chooseJudgment(category, attempted)
-            if (qids.isEmpty()) qids = container.content.chooseJudgment(category, emptySet())
+            var qids = container.content.chooseJudgment(category, attempted, container.preferences.questionsPerSet)
+            if (qids.isEmpty()) qids = container.content.chooseJudgment(category, emptySet(), container.preferences.questionsPerSet)
             begin(SessionSnapshot("judgment", category, qids))
         }
     }
@@ -178,6 +214,17 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             begin(SessionSnapshot("data-analysis", "资料分析", qids))
         }
     }
+    fun continueLearning() {
+        val session = _state.value.session ?: return
+        when (session.type) {
+            "judgment" -> startJudgment(session.title)
+            "data-analysis" -> startDataAnalysis()
+            "wrong" -> openCollection(CollectionType.WRONG)
+            "favorites" -> openCollection(CollectionType.FAVORITES)
+            else -> openHome()
+        }
+    }
+
 
     fun openCollection(type: CollectionType) {
         viewModelScope.launch {

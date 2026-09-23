@@ -31,6 +31,27 @@ class ContentRepository(private val context: Context) {
         }
     }
 
+    suspend fun answeredByCategory(attemptedQids: Set<String>): Map<String, Int> = withDatabase("judgment") { db ->
+        buildMap {
+            db.rawQuery("SELECT category, qid FROM questions", null).use { cursor ->
+                while (cursor.moveToNext()) {
+                    val category = cursor.getString(0)
+                    if (cursor.getString(1) in attemptedQids) put(category, (get(category) ?: 0) + 1)
+                }
+            }
+        }
+    }
+
+    suspend fun completedMaterialCount(attemptedQids: Set<String>): Int = withDatabase("data-analysis") { db ->
+        var completed = 0
+        db.rawQuery("SELECT group_concat(qid) FROM questions GROUP BY COALESCE(material_id, 'q:' || qid)", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                if (cursor.getString(0).split(',').all { it in attemptedQids }) completed += 1
+            }
+        }
+        completed
+    }
+
     suspend fun chooseJudgment(category: String, excluded: Set<String>, limit: Int = 5): List<String> =
         queryIds("judgment", "category = ?", arrayOf(category)).filterNot(excluded::contains).shuffled().take(limit)
 

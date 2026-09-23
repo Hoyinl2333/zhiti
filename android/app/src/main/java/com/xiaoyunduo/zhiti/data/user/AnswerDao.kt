@@ -13,6 +13,9 @@ interface AnswerDao {
     @Query("SELECT qid FROM answers WHERE attempts > 0")
     suspend fun attemptedIds(): List<String>
 
+
+    @Query("SELECT qid FROM answers WHERE attempts > 0")
+    fun attemptedIdsFlow(): Flow<List<String>>
     @Query("SELECT qid FROM answers WHERE everWrong = 1 AND corrected = 0 ORDER BY updatedAt DESC")
     suspend fun wrongIds(): List<String>
 

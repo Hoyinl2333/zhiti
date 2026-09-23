@@ -10,7 +10,7 @@
 - 内容目录的 Ed25519 签名验证通过；相同输入重复构建所得 ZIP 字节一致。
 - Go 服务测试全部通过，覆盖设备绑定、重复激活、未授权下载、Range、状态重载、令牌吊销和设备解绑。
 - Android 4 项练习状态单元测试通过；`lintDebug`、发布版 R8 压缩和 `assembleRelease` 通过。
-- APK 元数据确认包名 `com.xiaoyunduo.zhiti`、版本 `1.0.0`、最低 API 31、目标 API 37；APK v3 签名验证通过。
+- APK 元数据确认包名 `com.xiaoyunduo.zhiti`、版本 `1.0.1`、最低 API 31、目标 API 37；APK v3 签名验证通过。
 
 ## 模拟器实测
 

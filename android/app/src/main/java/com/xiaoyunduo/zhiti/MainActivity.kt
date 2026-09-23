@@ -71,6 +71,7 @@ private fun ZhitiApp(state: UiState, viewModel: MainViewModel) {
         Page.ACTIVATION -> ActivationScreen(state, viewModel::activate)
         Page.DOWNLOADS -> DownloadsScreen(state, viewModel::download, viewModel::openHome)
         Page.HOME -> HomeScreen(state, viewModel)
+        Page.SETTINGS -> SettingsScreen(state, viewModel::openHome, viewModel::setQuestionsPerSet)
         Page.PRACTICE -> PracticeScreen(state, viewModel)
         Page.SUMMARY -> SummaryScreen(state, viewModel)
         Page.COLLECTION -> EmptyCollectionScreen(state, viewModel::openHome)
@@ -165,6 +166,7 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
                 IconButton(onClick = { menu = true }) { Icon(Icons.Outlined.MoreVert, "更多") }
                 DropdownMenu(menu, { menu = false }) {
                     DropdownMenuItem({ Text("管理题库") }, onClick = { menu = false; viewModel.openDownloads() }, leadingIcon = { Icon(Icons.Outlined.Download, null) })
+                    DropdownMenuItem({ Text("设置") }, onClick = { menu = false; viewModel.openSettings() }, leadingIcon = { Icon(Icons.Outlined.Settings, null) })
                     DropdownMenuItem({ Text("来源与许可") }, onClick = { menu = false; about = true }, leadingIcon = { Icon(Icons.Outlined.Info, null) })
                     DropdownMenuItem({ Text("清空记录") }, onClick = { menu = false; confirmClear = true }, leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null) })
                 }
@@ -188,7 +190,7 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
             categories.chunked(2).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                     row.forEach { category ->
-                        CategoryCard(category, state.categories[category] ?: 0, Modifier.weight(1f)) { viewModel.startJudgment(category) }
+                        CategoryCard(category, state.categories[category] ?: 0, state.categoryProgress[category] ?: 0, Modifier.weight(1f)) { viewModel.startJudgment(category) }
                     }
                 }
             }
@@ -196,9 +198,12 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
         if ("data-analysis" in state.installed) {
             Spacer(Modifier.height(18.dp))
             SectionTitle("资料分析")
-            CategoryCard("完整材料", state.catalog?.packs?.firstOrNull { it.packId == "data-analysis" }?.materialCount ?: 717, Modifier.fillMaxWidth()) {
-                viewModel.startDataAnalysis()
-            }
+            CategoryCard(
+                "完整材料",
+                state.catalog?.packs?.firstOrNull { it.packId == "data-analysis" }?.materialCount ?: 717,
+                state.completedMaterialCount,
+                Modifier.fillMaxWidth(),
+            ) { viewModel.startDataAnalysis() }
         }
     }
     if (confirmClear) AlertDialog(
@@ -214,6 +219,41 @@ private fun HomeScreen(state: UiState, viewModel: MainViewModel) {
         text = { Text("题库整理：ERRRC/kaogongzhentizhengliu\n整理内容采用 CC BY-NC 4.0；真题版权归原出题机构和原出版方。") },
         confirmButton = { TextButton(onClick = { about = false }) { Text("关闭") } },
     )
+}
+
+@Composable
+private fun SettingsScreen(state: UiState, back: () -> Unit, setQuestionsPerSet: (Int) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    ScreenColumn {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            IconButton(onClick = back) { Icon(Icons.Outlined.Close, "返回") }
+            TopTitle("设置", Modifier.weight(1f).padding(start = 4.dp))
+        }
+        SectionTitle("每组题数")
+        Surface(Modifier.fillMaxWidth(), shape = RoundedCornerShape(15.dp), border = BorderStroke(1.dp, Line), color = Color.White) {
+            Row(Modifier.fillMaxWidth().padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("判断推理", Modifier.weight(1f), fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+                Box {
+                    OutlinedButton(onClick = { expanded = true }) {
+                        Text("${state.questionsPerSet} 题")
+                        Spacer(Modifier.width(4.dp))
+                        Icon(Icons.Outlined.ArrowDropDown, null)
+                    }
+                    DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+                        listOf(5, 10, 15, 20).forEach { count ->
+                            DropdownMenuItem(
+                                text = { Text("$count 题") },
+                                onClick = {
+                                    expanded = false
+                                    setQuestionsPerSet(count)
+                                },
+                            )
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -365,7 +405,9 @@ private fun SummaryScreen(state: UiState, viewModel: MainViewModel) {
                 SummaryValue("正确率", if (session.answered == 0) "0%" else "${(session.correct * 100f / session.answered).roundToInt()}%")
             }
             Spacer(Modifier.height(28.dp))
-            Button(onClick = viewModel::openHome, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("返回首页") }
+            Button(onClick = viewModel::continueLearning, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("继续学习") }
+            Spacer(Modifier.height(10.dp))
+            OutlinedButton(onClick = viewModel::openHome, modifier = Modifier.fillMaxWidth().height(50.dp)) { Text("返回首页") }
             if (state.wrongCount > 0) TextButton(onClick = { viewModel.openCollection(CollectionType.WRONG) }) { Text("查看错题") }
         }
     }
@@ -429,21 +471,27 @@ private fun ZoomDialog(bitmap: androidx.compose.ui.graphics.ImageBitmap, close: 
 @Composable private fun TopTitle(text: String, modifier: Modifier = Modifier) = Text(text, modifier.padding(bottom = 22.dp), fontSize = 28.sp, fontWeight = FontWeight.Bold)
 @Composable private fun SectionTitle(text: String) = Text(text, fontSize = 18.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(bottom = 12.dp))
 @Composable private fun InlineError(text: String) = Text(text, color = MaterialTheme.colorScheme.error, modifier = Modifier.fillMaxWidth().padding(bottom = 14.dp))
-
 @Composable
-private fun CategoryCard(title: String, count: Int, modifier: Modifier, click: () -> Unit) {
+private fun CategoryCard(title: String, total: Int, completed: Int, modifier: Modifier, click: () -> Unit) {
     Surface(modifier.padding(bottom = 12.dp).height(88.dp).clickable(onClick = click), shape = RoundedCornerShape(15.dp), border = BorderStroke(1.dp, Line), color = Color.White) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.Center) {
-            Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold); Text("$count", color = Muted, fontSize = 13.sp)
+            Text(title, fontSize = 17.sp, fontWeight = FontWeight.SemiBold)
+            Text("$completed / $total", color = Muted, fontSize = 13.sp)
         }
     }
 }
 
 @Composable
 private fun StatButton(title: String, value: Int, icon: androidx.compose.ui.graphics.vector.ImageVector, modifier: Modifier, click: () -> Unit) {
-    Surface(modifier.height(80.dp).clickable(onClick = click), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Line), color = Color.White) {
-        Column(Modifier.padding(11.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
-            Icon(icon, null, Modifier.size(20.dp), tint = Navy); Text(value.toString(), fontWeight = FontWeight.Bold); Text(title, fontSize = 12.sp, color = Muted)
+    Surface(modifier.heightIn(min = 92.dp).clickable(onClick = click), shape = RoundedCornerShape(14.dp), border = BorderStroke(1.dp, Line), color = Color.White) {
+        Column(
+            Modifier.fillMaxSize().padding(horizontal = 8.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(3.dp, Alignment.CenterVertically),
+        ) {
+            Icon(icon, null, Modifier.size(22.dp), tint = Navy)
+            Text(value.toString(), fontSize = 20.sp, lineHeight = 24.sp, fontWeight = FontWeight.Bold)
+            Text(title, fontSize = 13.sp, lineHeight = 18.sp, color = Muted, maxLines = 1)
         }
     }
 }

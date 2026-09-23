@@ -12,6 +12,13 @@ class AppPreferences(context: Context) {
         get() = prefs.getString("access_token", null)
         set(value) { prefs.edit().putString("access_token", value).apply() }
 
+    var questionsPerSet: Int
+        get() = prefs.getInt("questions_per_set", 5).takeIf { it in setOf(5, 10, 15, 20) } ?: 5
+        set(value) {
+            require(value in setOf(5, 10, 15, 20))
+            prefs.edit().putInt("questions_per_set", value).apply()
+        }
+
     var currentSession: SessionSnapshot?
         get() = prefs.getString("session", null)?.let { runCatching { json.decodeFromString<SessionSnapshot>(it) }.getOrNull() }
         set(value) {
