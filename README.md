@@ -20,27 +20,24 @@
 
 ## 架构
 
-```text
-上游 Markdown 与图片
-        │
-        ▼
-content-pipeline
-解析、清理、校验、生成 SQLite 与资源包
-        │
-        ├── judgment-<version>.zip
-        ├── data-analysis-<version>.zip
-        └── catalog.json + catalog.sig
-                    │
-                    ▼
-              Go 内容服务
-       激活、目录、鉴权下载、Range
-                    │
-                    ▼
-              Android 应用
-        ┌───────────┴───────────┐
-        ▼                       ▼
-只读题库与图片             Room 用户数据库
-版本化更新                 作答、错题、收藏
+```mermaid
+flowchart LR
+    upstream[上游 Markdown 题库] --> pipeline[内容转换程序]
+
+    pipeline --> judgment[判断推理 ZIP]
+    pipeline --> analysis[资料分析 ZIP]
+    pipeline --> catalog[签名题库目录]
+
+    judgment --> server[Go 下载服务器]
+    analysis --> server
+    catalog --> server
+
+    app[Android 知题 App] -->|激活码| server
+    server -->|访问令牌| app
+    app <-->|下载并校验题库包| server
+
+    app --> content[只读题库 SQLite]
+    app --> records[Room 用户记录]
 ```
 
 题库数据和用户数据彼此独立。题库更新使用稳定的 `qid` 保留已有作答记录。服务器仅保存激活码、令牌和设备标识的摘要。
