@@ -1,0 +1,14 @@
+知题
+Copyright 2026 Zhiti contributors
+
+本仓库的 Apache-2.0 许可证仅覆盖由本项目创作的应用、服务和转换工具代码。
+
+第三方内容不受该许可证授权：
+- 题库构建输入来自 ERRRC/kaogongzhentizhengliu，固定提交为
+  84ab93d4b64b61d897bece8a1c0a5bab06b4feb2。
+- 上游自行创作的整理内容采用 CC BY-NC 4.0，完整文字保留于
+  SOURCE-LICENSE.txt。
+- 真题题干、选项、材料、图片及其权利归原出题机构、原出版方或其他权利人。
+
+公开仓库不包含题库 ZIP、题目图片或任何公共内容服务。部署者须自行确认
+内容的取得、转换、存储和分发已获得必要授权。

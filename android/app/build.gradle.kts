@@ -17,6 +17,37 @@ val releaseProperties = Properties().apply {
     }
 }
 
+val zhitiBaseUrl = (
+    releaseProperties.getProperty("ZHITI_BASE_URL")
+        ?: providers.gradleProperty("zhitiBaseUrl").orNull
+        ?: "https://example.invalid"
+).trimEnd('/')
+
+val releaseSigningKeys = listOf(
+    "ZHITI_KEYSTORE",
+    "ZHITI_KEYSTORE_PASSWORD",
+    "ZHITI_KEY_ALIAS",
+    "ZHITI_KEY_PASSWORD",
+)
+val releaseSigningConfigured = releaseSigningKeys.all { !releaseProperties.getProperty(it).isNullOrBlank() }
+
+val localTrustDirectory = rootProject.file("../.secrets")
+val sampleTrustDirectory = rootProject.file("config-sample")
+val zhitiTrustDirectory = providers.gradleProperty("zhitiTrustDir").orNull?.let { file(it) }
+    ?: localTrustDirectory.takeIf {
+        it.resolve("ca.crt").isFile && it.resolve("content-ed25519-public.pem").isFile
+    }
+    ?: sampleTrustDirectory
+val generatedTrustResources = layout.buildDirectory.dir("generated/zhiti-trust-res")
+val prepareZhitiTrust by tasks.registering(Copy::class) {
+    from(zhitiTrustDirectory) {
+        include("ca.crt", "content-ed25519-public.pem")
+        rename("ca.crt", "zhiti_ca.crt")
+        rename("content-ed25519-public.pem", "content_signing_public.pem")
+    }
+    into(generatedTrustResources.map { it.dir("raw") })
+}
+
 android {
     namespace = "com.xiaoyunduo.zhiti"
     compileSdk = 37
@@ -25,13 +56,14 @@ android {
         applicationId = "com.xiaoyunduo.zhiti"
         minSdk = 31
         targetSdk = 37
-        versionCode = 3
-        versionName = "1.0.2"
+        versionCode = 4
+        versionName = "1.0.3"
+        buildConfigField("String", "ZHITI_BASE_URL", "\"$zhitiBaseUrl\"")
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
     signingConfigs {
-        if (releaseProperties.isNotEmpty()) {
+        if (releaseSigningConfigured) {
             create("release") {
                 storeFile = file(releaseProperties.getProperty("ZHITI_KEYSTORE"))
                 storePassword = releaseProperties.getProperty("ZHITI_KEYSTORE_PASSWORD")
@@ -54,13 +86,19 @@ android {
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
-            if (releaseProperties.isNotEmpty()) signingConfig = signingConfigs.getByName("release")
+            if (releaseSigningConfigured) signingConfig = signingConfigs.getByName("release")
         }
     }
 
-    buildFeatures { compose = true }
+    buildFeatures {
+        compose = true
+        buildConfig = true
+    }
+    sourceSets.getByName("main").res.srcDir(generatedTrustResources.get().asFile)
     packaging { resources.excludes += "/META-INF/{AL2.0,LGPL2.1}" }
 }
+
+tasks.named("preBuild") { dependsOn(prepareZhitiTrust) }
 
 dependencies {
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")

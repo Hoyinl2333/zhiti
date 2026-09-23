@@ -1,0 +1,20 @@
+name: 缺陷报告
+description: 报告客户端、服务或转换工具的问题
+title: "[Bug]: "
+labels: [bug]
+body:
+  - type: textarea
+    attributes:
+      label: 问题描述
+      description: 请不要包含激活码、令牌、私钥或完整受限题目。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 复现步骤
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 环境与日志
+      description: 请先删除敏感信息。

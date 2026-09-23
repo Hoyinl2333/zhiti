@@ -2,8 +2,8 @@
 set -euo pipefail
 
 root="$(cd "$(dirname "$0")/../.." && pwd)"
-host="${ZHITI_DEPLOY_HOST:-ubuntu@43.136.39.211}"
-remote="${ZHITI_REMOTE_DIR:-/opt/zhiti}"
+host="${ZHITI_DEPLOY_HOST:?set ZHITI_DEPLOY_HOST, for example ubuntu@server.example.com}"
+remote="${ZHITI_REMOTE_DIR:?set ZHITI_REMOTE_DIR, for example /opt/zhiti}"
 
 test -f "$root/.secrets/server.env"
 test -f "$root/.secrets/server.crt"

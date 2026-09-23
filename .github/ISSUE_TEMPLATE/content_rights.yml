@@ -1,0 +1,26 @@
+name: 内容权利请求
+description: 请求删除、署名更正或处理内容授权问题
+title: "[Content]: "
+labels: [content-rights]
+body:
+  - type: markdown
+    attributes:
+      value: 请勿粘贴完整题目、受限图片、身份证明或其他敏感材料。维护者会在初步确认后提供私密沟通方式。
+  - type: textarea
+    attributes:
+      label: 内容位置
+      description: 请提供文件路径、链接或可识别位置。
+    validations:
+      required: true
+  - type: textarea
+    attributes:
+      label: 权利关系与请求
+      description: 请说明你的权利关系，以及希望删除、更正署名或采取的其他措施。
+    validations:
+      required: true
+  - type: input
+    attributes:
+      label: 联系邮箱
+      description: 仅用于跟进，不要填写其他敏感信息。
+    validations:
+      required: true

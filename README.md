@@ -2,7 +2,7 @@
 
 知题是一款面向公务员考试题库的原生 Android 应用。题库按模块下载到设备，下载完成后可离线练习；作答、错题、订正和收藏记录仅保存在本机。
 
-- 当前版本：`1.0.2`
+- 当前版本：`1.0.3`
 - Android 包名：`com.xiaoyunduo.zhiti`
 - 最低系统版本：Android 12（API 31）
 
@@ -55,8 +55,10 @@ flowchart LR
 ├── server/                Go 激活与内容下载服务
 ├── infra/                 Docker Compose、证书和部署脚本
 ├── docs/                  安装、发布、部署、审计与测试文档
-├── Makefile               测试命令入口
-└── SOURCE-LICENSE.txt     上游题库许可与免责声明
+├── LICENSE                应用、服务和工具代码的 Apache-2.0 许可证
+├── NOTICE                 第三方内容与商标声明
+├── SOURCE-LICENSE.txt     上游题库许可与免责声明
+└── Makefile               测试命令入口
 ```
 
 以下内容只在本机生成，不纳入 Git：
@@ -87,7 +89,7 @@ git clone <repository-url> zhiti
 cd zhiti
 ```
 
-本仓库不包含题库 ZIP、发布 APK 或私钥。首次完整构建需要另行准备固定版本的上游题库：
+本仓库不包含题库 ZIP、题目图片、发布 APK 或私钥；公开代码不授予任何题库内容的再分发权。首次完整构建前，请自行确认内容来源和使用权限，再准备固定版本的上游题库：
 
 ```text
 ERRRC/kaogongzhentizhengliu
@@ -119,10 +121,10 @@ make server-test
 
 ## 生成本地密钥
 
-以下命令会在 `.secrets/` 生成私有 CA、服务器证书、内容签名密钥和 Android 发布密钥，并把两个公钥复制到 Android 资源目录：
+以下命令会在 `.secrets/` 生成私有 CA、服务器证书、内容签名密钥和 Android 发布密钥。Gradle 构建会自动使用其中的 CA 证书和内容签名公钥。使用你自己的域名或 IP：
 
 ```bash
-infra/scripts/create-secrets.sh
+ZHITI_SERVER_HOST=server.example.com infra/scripts/create-secrets.sh
 ```
 
 `.secrets/` 已被 Git 忽略。发布密钥丢失后无法覆盖升级已安装的应用，应保留离线备份。
@@ -164,7 +166,13 @@ python3 content-pipeline/verify_pack.py \
 
 ```bash
 cd android
-./gradlew assembleDebug
+./gradlew -PzhitiBaseUrl=https://server.example.com assembleDebug
+```
+
+`zhitiBaseUrl` 是自建服务地址；未提供时，公开源码构建会使用不可访问的 `https://example.invalid`，避免意外连接任何生产服务。Gradle 会优先使用 `.secrets/` 中由密钥脚本生成的 CA 证书和内容验签公钥；没有该目录时只使用不对应服务的示例材料。正式发布可将同一地址写入未纳入 Git 的 `.secrets/release.env`：
+
+```text
+ZHITI_BASE_URL=https://server.example.com
 ```
 
 输出：
@@ -257,11 +265,15 @@ go run ./cmd/zhiti-admin create \
 - [服务器部署与维护](docs/SERVER.md)
 - [测试报告](docs/TEST-REPORT.md)
 - [Android 有限分发](docs/LIMITED_DISTRIBUTION.md)
+- [隐私说明](PRIVACY.md)
+- [内容政策](docs/CONTENT-POLICY.md)
+- [贡献指南](CONTRIBUTING.md)
+- [安全报告](SECURITY.md)
 
-## 数据来源与许可
+## 开源与内容边界
 
-题库来源为 [ERRRC/kaogongzhentizhengliu](https://github.com/ERRRC/kaogongzhentizhengliu)，构建固定在提交 `84ab93d4b64b61d897bece8a1c0a5bab06b4feb2`。
+应用、服务和转换工具代码采用 [Apache-2.0](LICENSE)。该许可只覆盖仓库中由本项目创作的代码，不覆盖题干、选项、解析、材料、图片、内容包或其他第三方内容。
 
-上游整理内容采用 CC BY-NC 4.0；真题题干、选项、材料和图片的权利归原出题机构或原出版方。署名、非商业使用条件及免责声明见 [SOURCE-LICENSE.txt](SOURCE-LICENSE.txt)。
+题库的构建输入固定为 [ERRRC/kaogongzhentizhengliu](https://github.com/ERRRC/kaogongzhentizhengliu) 的提交 `84ab93d4b64b61d897bece8a1c0a5bab06b4feb2`。上游整理内容采用 CC BY-NC 4.0；真题及图片的权利归原出题机构或原出版方。完整署名、非商业条件和删除请求说明见 [SOURCE-LICENSE.txt](SOURCE-LICENSE.txt)、[NOTICE](NOTICE) 与 [内容政策](docs/CONTENT-POLICY.md)。
 
-本仓库尚未为应用代码单独声明开源许可证。在许可证明确前，不能仅依据题库内容的 CC BY-NC 4.0 推定应用代码也采用该许可证。
+公开仓库不提供题库 ZIP、题目图片或公共下载服务。部署者应自行确认内容的取得、转换、存储和分发均已获得必要授权。

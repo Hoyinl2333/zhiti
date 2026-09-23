@@ -1,5 +1,6 @@
 package com.xiaoyunduo.zhiti.data.api
 
+import com.xiaoyunduo.zhiti.BuildConfig
 import com.xiaoyunduo.zhiti.data.Catalog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -13,7 +14,7 @@ import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 class ZhitiApi(
-    private val baseUrl: String = "https://43.136.39.211",
+    private val baseUrl: String = BuildConfig.ZHITI_BASE_URL,
     val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(60, TimeUnit.SECONDS)

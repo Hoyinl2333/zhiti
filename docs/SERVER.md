@@ -4,18 +4,19 @@
 
 ## 首次部署
 
-1. 在本机执行 `infra/scripts/create-secrets.sh`。
-2. 构建并签名题库包。
-3. 执行 `infra/scripts/deploy.sh`。
-4. 在腾讯云安全组中允许 TCP 443 入站。
-5. 执行 `curl --cacert .secrets/ca.crt https://43.136.39.211/healthz` 检查服务。
+1. 复制 `infra/.env.example` 为 `infra/.env`，再用至少 32 个字符的随机值替换 `ZHITI_PEPPER`。
+2. 设置 `ZHITI_SERVER_HOST=server.example.com`，再执行 `infra/scripts/create-secrets.sh`。
+3. 构建并签名你有权处理的题库包。
+4. 设置 `ZHITI_DEPLOY_HOST=ubuntu@server.example.com`、`ZHITI_REMOTE_DIR=/opt/zhiti` 后执行 `infra/scripts/deploy.sh`。
+5. 在云安全组中允许 TCP 443 入站。
+6. 执行 `curl --cacert .secrets/ca.crt https://server.example.com/healthz` 检查服务。
 
 ## 激活码
 
 在服务器执行：
 
 ```bash
-cd /opt/zhiti/infra
+cd "$ZHITI_REMOTE_DIR/infra"
 docker compose run --rm --entrypoint /zhiti-admin zhiti create --state /data/state.json --count 1
 docker compose run --rm --entrypoint /zhiti-admin zhiti status --state /data/state.json
 docker compose run --rm --entrypoint /zhiti-admin zhiti unbind --state /data/state.json --code ZHITI-XXXX-XXXX-XXXX-XXXX
@@ -26,4 +27,4 @@ docker compose run --rm --entrypoint /zhiti-admin zhiti revoke --state /data/sta
 
 ## 备份
 
-需备份本地 `.secrets/` 和服务器 `/opt/zhiti/infra/runtime/data/state.json`。CA 私钥、内容签名私钥和 APK 签名库只保存在本地离线备份中。
+需备份本地 `.secrets/` 和服务器 `$ZHITI_REMOTE_DIR/infra/runtime/data/state.json`。CA 私钥、内容签名私钥和 APK 签名库只保存在本地离线备份中。
